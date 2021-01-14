@@ -1,0 +1,1 @@
+## Repository dedicated to collaborating on Kaggle Competitions
