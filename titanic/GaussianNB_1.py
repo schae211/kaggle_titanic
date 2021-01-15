@@ -14,6 +14,7 @@ submission_data = pd.read_csv("test.csv")
 def feature_eng(df):
     df["Sex"] = np.where(df["Sex"] == "female", 0, 1)
 
+    # fill NaN with the median/mean of the column
     df = df.fillna(df.median())
 
     for index in df.index:

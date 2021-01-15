@@ -3,14 +3,14 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 
-
-test_data = pd.read_csv("train.csv")
+input_data = pd.read_csv("train.csv")
 submission_data = pd.read_csv("test.csv")
 
 
 def feature_eng(df):
     df["Sex"] = np.where(df["Sex"] == "female", 0, 1)
 
+    # fill NaN with the median/mean of the column
     df = df.fillna(df.median())
 
     for index in df.index:
@@ -23,23 +23,24 @@ def feature_eng(df):
 
     return df
 
+
 features = ["Pclass", "Sex", "Age", "SibSp", "Parch", "Fare", "Embarked"]
 
-test_data = feature_eng(test_data)
+test_data = feature_eng(input_data)
 
 evidence = test_data[features].values.tolist()
 labels = test_data["Survived"].values.tolist()
 
 # Split the data randomly into training and test set (test size is 40%)
 X_training, X_testing, y_training, y_testing = train_test_split(
-    evidence, labels, test_size=0.4
+    evidence, labels, test_size=0.2
 )
 
-# Convert the labels into categorical (what happens here under the hood?)
+# Convert the labels into categorical (one-hot encoding)
 y_training = tf.keras.utils.to_categorical(y_training)
 y_testing = tf.keras.utils.to_categorical(y_testing)
 
-# Convert the evidence list into a numpy array (why is that necessary?)
+# Convert the evidence list into a numpy array ()
 X_training = np.array(X_training)
 X_testing = np.array(X_testing)
 
