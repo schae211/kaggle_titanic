@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
+import seaborn as sn
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+
 from loss_function import binary_focal_loss_fixed
 from cfg import cfg
 
@@ -43,7 +45,7 @@ def load_and_create_data_partition(train_data, test_data):
     test_data = test_data[features].values.tolist()
 
     # Split the data randomly into training and test set (test size is 40%)
-    X_train, X_val, y_train, y_val = train_test_split(evidence, labels, test_size=0.2, random_state=False)
+    X_train, X_val, y_train, y_val = train_test_split(evidence, labels, test_size=0.2, random_state=200)
 
     # Convert the labels into categorical (what happens here under the hood?)
     y_train = tf.keras.utils.to_categorical(y_train)
@@ -107,6 +109,49 @@ def plot_training_history(history):
     plt.show()
 
 
+def evaluate_model(pred, label):
+    # calculate TP, FP, TN, FN
+    # 0 = Dead
+    # 1 = Survived (positive class)
+    confusion_mat = {"TP": 0, "FP": 0, "TN": 0, "FN": 0}
+
+    for j in range(len(pred)):
+        if label[j, 1] == 1:  # positive class
+            if pred[j, 0] <= cfg['network']['threshold']:
+                confusion_mat['TP'] += 1
+            else:
+                confusion_mat['FN'] += 1
+        else:
+            if pred[j, 0] <= cfg['network']['threshold']:
+                confusion_mat['FP'] += 1
+            else:
+                confusion_mat['TN'] += 1
+    print(confusion_mat)
+    conf_mat = np.array([[confusion_mat["TP"], confusion_mat["FP"]],
+                         [confusion_mat["FN"], confusion_mat["TN"]]])
+    df_cm = pd.DataFrame(conf_mat, index=[i for i in ["survived", "dead"]],
+                         columns=[i for i in ["survived", "dead"]])
+    plt.xlabel("True class")
+    plt.ylabel("Predicted class")
+    sn.heatmap(df_cm, annot=True)
+    plt.show()
+
+    tp = confusion_mat["TP"]
+    fp = confusion_mat["FP"]
+    tn = confusion_mat["TN"]
+    fn = confusion_mat["FN"]
+
+    accuracy = (tp+tn)/(tp+fp+fn+tn)
+    precision = tp/(tp+fp)
+    recall = tp/(tp+fn)
+    f1_score = (2 * precision * recall) / (precision + recall)
+
+    print("Accuracy: ", round(accuracy, 2))
+    print("Precision: ", round(precision, 2))
+    print("Recall: ", round(recall, 2))
+    print("F1 Score: ", round(f1_score, 2))
+
+
 if __name__ == "__main__":
     training_data = pd.read_csv("Data/train.csv")
     submission_data = pd.read_csv("Data/test.csv")
@@ -114,7 +159,7 @@ if __name__ == "__main__":
                                                                                                 submission_data)
 
     # callbacks
-    earlyStopping = EarlyStopping(monitor='val_loss', patience=cfg['training']['patience'], verbose=0, mode='min')
+    earlyStopping = EarlyStopping(monitor='val_loss', patience=cfg['training']['patience'], verbose=1, mode='min')
     mcp_save = ModelCheckpoint('./Models/best_model.h5', save_best_only=True, monitor='val_loss', mode='min')
 
     # Train the model (epochs=20 means, we will go through each data point 20 times?!)
@@ -122,21 +167,20 @@ if __name__ == "__main__":
     training_history = model.fit(X_training, y_training, epochs=cfg['training']['epochs'],
                                  validation_data=(X_validation, y_validation), batch_size=cfg['training']['batch_size'],
                                  callbacks=[earlyStopping, mcp_save])
-    model.evaluate(X_validation, y_validation, verbose=2)
     plot_training_history(training_history)
 
     # custom objects to load the custom loss function is needed
     model = tf.keras.models.load_model("./Models/best_model.h5",
                                        custom_objects={'binary_focal_loss_fixed': binary_focal_loss_fixed})
-
-    # TODO: Create confususion matrix -> False Positive, True pos, Tre neg, False neg
-    #      - evaluation function using validation
+    # evaluate the performance
+    predictions = model.predict(X_validation)
+    evaluate_model(predictions, y_validation)
 
     predictions = model.predict(X_test)
     results = np.zeros(len(predictions), dtype=int)
 
     for i in range(len(predictions)):
-        if predictions[i, 0] > 0.5:
+        if predictions[i, 0] > cfg['network']['threshold']:
             results[i] = 0
         else:
             results[i] = 1
