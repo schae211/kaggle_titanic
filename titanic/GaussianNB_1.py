@@ -7,8 +7,8 @@ from sklearn.naive_bayes import GaussianNB
 from sklearn.neighbors import KNeighborsClassifier
 
 
-test_data = pd.read_csv("train.csv")
-submission_data = pd.read_csv("test.csv")
+test_data = pd.read_csv("Data/train.csv")
+submission_data = pd.read_csv("Data/test.csv")
 
 
 def feature_eng(df):
