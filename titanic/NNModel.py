@@ -5,6 +5,9 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.layers import Dense, Input, Softmax, BatchNormalization, Dropout
+from tensorflow.keras import Model
+
 
 from loss_function import binary_focal_loss_fixed
 from cfg import cfg
@@ -13,8 +16,8 @@ from cfg import cfg
 def feature_eng(df):
     df["Sex"] = np.where(df["Sex"] == "female", 0, 1)
 
-    # df = df.fillna(df.median())
-    df = df.fillna(0)
+    df = df.fillna(df.median())
+    # df = df.fillna(100)
 
     # Normalize values between 0 and 1
     df["Age"] /= df["Age"].max()
@@ -60,30 +63,32 @@ def load_and_create_data_partition(train_data, test_data):
 
 def create_model():
     # Create a neural network (sequential neural network in this case)
-    nn_model = tf.keras.models.Sequential()
 
-    # Add a hidden layer with 24 units, with ReLU activation
-    nn_model.add(tf.keras.layers.Dense(128, input_shape=(len(cfg['training']['features']),), activation="relu",
-                                       kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
-                                       activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']),
-                                       use_bias=False))
-    nn_model.add(tf.keras.layers.BatchNormalization())
-    nn_model.add(tf.keras.layers.Dropout(0.4))
+    inputs = Input(shape=(len(cfg['training']['features']),))
+    x = Dense(32, input_shape=(len(cfg['training']['features']),), activation="relu",
+              kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
+              activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']),
+              use_bias=False)(inputs)
+    x = BatchNormalization()(x)
+    x = Dropout(0.4)(x)
+
+    x_skip = x
 
     for _ in range(cfg['network']['hidden_layer']):
         # Add hidden layer with 1 unit, with relu activation
-        nn_model.add(tf.keras.layers.Dense(cfg['network']['hidden_neurons'], activation="relu",
-                                           kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
-                                           activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']),
-                                           use_bias=False))
-        nn_model.add(tf.keras.layers.BatchNormalization())
-        nn_model.add(tf.keras.layers.Dropout(0.4))
+        x = Dense(cfg['network']['hidden_neurons'], activation="relu",
+                  kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
+                  activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']), use_bias=False)(x)
+        x = BatchNormalization()(x)
+
+    x = x + x_skip
 
     # Add output layer with 2 units, with sigmoid activation function for the probability
-    nn_model.add(tf.keras.layers.Dense(2, activation="sigmoid",
-                                       kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
-                                       activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2'])))
-    nn_model.add(tf.keras.layers.Softmax())
+    x = Dense(2, activation="sigmoid", kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
+              activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']))(x)
+    outputs = Softmax()(x)
+
+    nn_model = Model(inputs, outputs)
 
     # Train neural network (how to optimize, which loss function, which metric to evaluate how good the model is)
     optimizer = tf.keras.optimizers.Adam(learning_rate=cfg['training']['learning_rate'], name='Adam')
@@ -129,8 +134,8 @@ def evaluate_model(pred, label):
     print(confusion_mat)
     conf_mat = np.array([[confusion_mat["TP"], confusion_mat["FP"]],
                          [confusion_mat["FN"], confusion_mat["TN"]]])
-    df_cm = pd.DataFrame(conf_mat, index=[i for i in ["survived", "dead"]],
-                         columns=[i for i in ["survived", "dead"]])
+    df_cm = pd.DataFrame(conf_mat, index=[c for c in ["survived", "dead"]],
+                         columns=[j for j in ["survived", "dead"]])
     plt.xlabel("True class")
     plt.ylabel("Predicted class")
     sn.heatmap(df_cm, annot=True)
