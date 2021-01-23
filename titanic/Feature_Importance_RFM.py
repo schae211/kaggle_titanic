@@ -23,10 +23,7 @@ def prep_evidence(df, feat):
         evidence_list.append(temp)
     return evidence_list
 
-# df_train["Embarked_int"] = df_train["Embarked"].apply(lambda row: 1 if row == "S" else 0)
-# df_test["Embarked_int"] = df_test["Embarked"].apply(lambda row: 1 if row == "S" else 0)
-# features = ["Pclass_Scale", "AgeOHE", "Fare_StdSc", "SibSpOHE", "ParchOHE", "EmbarkedOHE", "Sex"]
-features = ["Parch", "Sex", "Age_StdSc", "Fare_StdSc", "Pclass", "SibSp"]
+features = ["Sex", "Age_StdSc", "Fare_StdSc", "Name_StdSc", "SibSp_StdSc", "Parch_StdSc", "Pclass_StdSc", "Embarked_StdSc"]
 
 evidence = prep_evidence(df_train, features)
 labels = df_train["Survived"].values.tolist()

@@ -108,12 +108,16 @@ def main(*dfs, verbose=False):
 
         df["Sex"] = df["Sex"].replace({"female": 0, "male": 1})
         df["NameLength"] = df.apply(lambda row: (len(row.Name)), axis=1)
+        df["Embarked_Int"] = df.apply(lambda row: {"S": 1, "C": 2, "Q": 3}[row.Embarked_filled], axis=1)
 
         df["Age_StdSc"] = feature_scaling(df, "Age_filled")
         df["Fare_StdSc"] = feature_scaling(df, "Fare_filled")
         df["Name_StdSc"] = feature_scaling(df, "NameLength")
+        df["SibSp_StdSc"] = feature_scaling(df, "SibSp")
+        df["Parch_StdSc"] = feature_scaling(df, "Parch")
+        df["Pclass_StdSc"] = feature_scaling(df, "Pclass")
+        df["Embarked_StdSc"] = feature_scaling(df, "Embarked_Int")
 
-        df["Pclass_Scale"] = df.apply(lambda row: {1: 0, 2: 0.5, 3: 1}[row.Pclass], axis=1)
         df["Age_Class"] = df.apply(lambda row: Age_Classification(row.Age), axis=1)
         df["SibSp_Class"] = df.apply(lambda row: SibSp_classification(row.SibSp), axis=1)
         df["Parch_Class"] = df.apply(lambda row: Parch_classification(row.Parch), axis=1)
