@@ -5,73 +5,70 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow.keras.layers import Dense, Input, Softmax, BatchNormalization, Dropout
+from tensorflow.keras.layers import Dense, Input, Softmax, BatchNormalization, Dropout, Concatenate
 from tensorflow.keras import Model
 
 
-from loss_function import binary_focal_loss_fixed
+from loss_function import custom_loss_function, binary_focal_loss_fixed
+from feature_processing_1 import load_and_process_data_set
 from cfg import cfg
 
 
-def feature_eng(df):
-    df["Sex"] = np.where(df["Sex"] == "female", 0, 1)
-
-    df = df.fillna(df.median())
-    # df = df.fillna(100)
-
-    # Normalize values between 0 and 1
-    df["Age"] /= df["Age"].max()
-    df["Fare"] /= df["Fare"].max()
-    df["Parch"] /= df["Parch"].max()
-    df["Pclass"] /= df["Pclass"].max()
-    df["SibSp"] /= df["SibSp"].max()
-
-    for index in df.index:
-        if df.loc[index, "Embarked"] == "S":
-            df.loc[index, "Embarked"] = 0
-        elif df.loc[index, "Embarked"] == "C":
-            df.loc[index, "Embarked"] = 0.5
-        else:
-            df.loc[index, "Embarked"] = 1
-    return df
+def flatten_nested_list(nested_list):
+    un_nested_list = []
+    for entry in nested_list:
+        flatten_entry = []
+        for val in entry:
+            if isinstance(val, list):
+                flatten_entry.extend(val)
+            else:
+                flatten_entry.append(val)
+        un_nested_list.append(flatten_entry)
+    return un_nested_list
 
 
-def load_and_create_data_partition(train_data, test_data):
+def load_and_create_data_partition():
+    train_data, test_data = load_and_process_data_set()
+
     features = cfg['training']['features']
 
-    training_data = feature_eng(train_data)
-    test_data = feature_eng(test_data)
+    training_data = train_data.copy()
+    test_data = test_data.copy()
 
     evidence = training_data[features].values.tolist()
     labels = training_data["Survived"].values.tolist()
-
     test_data = test_data[features].values.tolist()
 
     # Split the data randomly into training and test set (test size is 40%)
-    X_train, X_val, y_train, y_val = train_test_split(evidence, labels, test_size=0.2, random_state=200)
+    X_train, X_val, y_train, y_val = train_test_split(evidence, labels, random_state=200)
 
     # Convert the labels into categorical (what happens here under the hood?)
     y_train = tf.keras.utils.to_categorical(y_train)
     y_val = tf.keras.utils.to_categorical(y_val)
 
     # Convert the evidence list into a numpy array (why is that necessary?)
-    X_train = np.array(X_train)
-    X_val = np.array(X_val)
-    X_test = np.array(test_data)
+    X_train = np.array(flatten_nested_list(X_train))
+    X_val = np.array(flatten_nested_list(X_val))
+    X_test = np.array(flatten_nested_list(test_data))
     return X_train, X_val, X_test, y_train, y_val
 
 
 def create_model():
     # Create a neural network (sequential neural network in this case)
 
-    inputs = Input(shape=(len(cfg['training']['features']),))
-    x = Dense(32, input_shape=(len(cfg['training']['features']),), activation="relu",
+    inputs = Input(shape=(6,))
+    x = Dense(128, input_shape=(len(cfg['training']['features']),), activation="relu",
               kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
               activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']),
               use_bias=False)(inputs)
     x = BatchNormalization()(x)
     x = Dropout(0.4)(x)
 
+    x = Dense(32, activation="relu",
+              kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
+              activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']),
+              use_bias=False)(x)
+    x = BatchNormalization()(x)
     x_skip = x
 
     for _ in range(cfg['network']['hidden_layer']):
@@ -83,12 +80,14 @@ def create_model():
 
     x = x + x_skip
 
+    # x_sigma = Dense(1, activation="softplus")(x)
     # Add output layer with 2 units, with sigmoid activation function for the probability
-    x = Dense(2, activation="sigmoid", kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
-              activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']))(x)
-    outputs = Softmax()(x)
+    x_class = Dense(2, activation="sigmoid", kernel_regularizer=tf.keras.regularizers.l1(cfg['network']['l1']),
+                    activity_regularizer=tf.keras.regularizers.l2(cfg['network']['l2']))(x)
+    # x_class = Softmax()(x_class)
+    # outputs = Concatenate()([x_class, x_sigma])
 
-    nn_model = Model(inputs, outputs)
+    nn_model = Model(inputs, x_class)
 
     # Train neural network (how to optimize, which loss function, which metric to evaluate how good the model is)
     optimizer = tf.keras.optimizers.Adam(learning_rate=cfg['training']['learning_rate'], name='Adam')
@@ -122,12 +121,12 @@ def evaluate_model(pred, label):
 
     for j in range(len(pred)):
         if label[j, 1] == 1:  # positive class
-            if pred[j, 0] <= cfg['network']['threshold']:
+            if pred[j, 0] < pred[j, 1]:
                 confusion_mat['TP'] += 1
             else:
                 confusion_mat['FN'] += 1
         else:
-            if pred[j, 0] <= cfg['network']['threshold']:
+            if pred[j, 0] < pred[j, 1]:
                 confusion_mat['FP'] += 1
             else:
                 confusion_mat['TN'] += 1
@@ -158,10 +157,8 @@ def evaluate_model(pred, label):
 
 
 if __name__ == "__main__":
-    training_data = pd.read_csv("Data/train.csv")
     submission_data = pd.read_csv("Data/test.csv")
-    X_training, X_validation, X_test, y_training, y_validation = load_and_create_data_partition(training_data,
-                                                                                                submission_data)
+    X_training, X_validation, X_test, y_training, y_validation = load_and_create_data_partition()
 
     # callbacks
     earlyStopping = EarlyStopping(monitor='val_loss', patience=cfg['training']['patience'], verbose=1, mode='min')
@@ -171,21 +168,23 @@ if __name__ == "__main__":
     model = create_model()
     training_history = model.fit(X_training, y_training, epochs=cfg['training']['epochs'],
                                  validation_data=(X_validation, y_validation), batch_size=cfg['training']['batch_size'],
-                                 callbacks=[earlyStopping, mcp_save])
+                                 callbacks=[mcp_save, earlyStopping], verbose=2)
     plot_training_history(training_history)
 
     # custom objects to load the custom loss function is needed
     model = tf.keras.models.load_model("./Models/best_model.h5",
                                        custom_objects={'binary_focal_loss_fixed': binary_focal_loss_fixed})
     # evaluate the performance
-    predictions = model.predict(X_validation)
-    evaluate_model(predictions, y_validation)
+    predictions_validation = model.predict(X_validation)
+    predictions_val_class = predictions_validation[:, :2]
+    # predictions_val_sigma = predictions_validation[:, 2]
+    evaluate_model(predictions_val_class, y_validation)
 
-    predictions = model.predict(X_test)
+    predictions = model.predict(X_test)[:, :2]
     results = np.zeros(len(predictions), dtype=int)
 
     for i in range(len(predictions)):
-        if predictions[i, 0] > cfg['network']['threshold']:
+        if predictions[i, 0] > predictions[i, 1]:
             results[i] = 0
         else:
             results[i] = 1

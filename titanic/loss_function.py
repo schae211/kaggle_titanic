@@ -29,3 +29,11 @@ def binary_focal_loss_fixed(y_true, y_pred):
     # Sum the losses in mini_batch
     loss = K.mean(K.sum(loss, axis=1))
     return loss
+
+
+def custom_loss_function(y_true, y_pred):
+    class_loss = binary_focal_loss_fixed(y_true, y_pred[:, 0:2])
+    sigma = y_pred[:, 2]
+
+    loss = K.sum((1 / sigma**2) * class_loss + tf.math.log(sigma))
+    return loss
