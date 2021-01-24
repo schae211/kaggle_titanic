@@ -1,13 +1,8 @@
 # Importing necessary libraries and loading data.
 import pandas as pd
 import numpy as np
-import seaborn as sns
-import matplotlib.pyplot as plt
-import math
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import StandardScaler
-
-sns.set(color_codes=True)
 
 
 def load_and_process_data_set():
@@ -18,14 +13,10 @@ def load_and_process_data_set():
     df_test_org = pd.read_csv("Data/test.csv")
 
     # NaN processing of test data
-    train_nulls_prior = df_train.isnull().sum()
     NaN_processing(df_train)
-    train_nulls_post = df_train.isnull().sum()
 
     # NaN processing of train data
-    test_nulls_prior = df_train.isnull().sum()
     NaN_processing(df_test)
-    test_nulls_post = df_train.isnull().sum()
 
     # Pclass scaling
     mapping = {1: 0, 2: 0.5, 3: 1}
@@ -35,17 +26,13 @@ def load_and_process_data_set():
     df_train["NameLength"] = df_train.apply(lambda row: (len(row.Name)), axis=1)
     df_test["NameLength"] = df_test.apply(lambda row: (len(row.Name)), axis=1)
 
-    df_train["Name_StdSc"] = feature_scaling(df_train, "NameLength")
-    df_test["Name_StdSc"] = feature_scaling(df_test, "NameLength")
-
     # Replacing sex with numerical values (0 if female else 1) in train and test set.
     replace_by_map(df_train, "Sex", {"female": 0, "male": 1})
     replace_by_map(df_test, "Sex", {"female": 0, "male": 1})
 
-    df_train["Age_StdSc"] = feature_scaling(df_train, "Age")
-    df_train["Fare_StdSc"] = feature_scaling(df_train, "Fare")
-    df_test["Age_StdSc"] = feature_scaling(df_test, "Age")
-    df_test["Fare_StdSc"] = feature_scaling(df_test, "Fare")
+    df_train["Age_StdSc"], df_test["Age_StdSc"] = feature_scaling(df_train, df_test, "Age")
+    df_train["Fare_StdSc"], df_test["Fare_StdSc"] = feature_scaling(df_train, df_test, "Fare")
+    df_train["Name_StdSc"], df_test["Name_StdSc"] = feature_scaling(df_train, df_test, "NameLength")
 
     df_train["Age_Class"] = df_train_org.apply(lambda row: Age_Classification(row.Age), axis=1)
     df_test["Age_Class"] = df_test_org.apply(lambda row: Age_Classification(row.Age), axis=1)
@@ -80,9 +67,12 @@ def replace_by_map(df, var, map):
     df[var] = df[var].replace(map)
 
 
-def feature_scaling(df, var):
+def feature_scaling(df_train, df_test, var):
     stdsc = StandardScaler()
-    return stdsc.fit_transform(np.array(df[var]).reshape(-1, 1))
+    values = np.array(df_train[var])
+    values = np.append(values, df_test[var])
+    stdsc.fit(values.reshape(-1, 1))
+    return stdsc.transform(np.array(df_train[var]).reshape(-1, 1)), stdsc.transform(np.array(df_test[var]).reshape(-1, 1))
 
 
 def SibSp_classification(number):
