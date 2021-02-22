@@ -65,7 +65,7 @@ test_predictions = model.predict(X_test)
 
 # Safe predictions:
 output = pd.DataFrame({'PassengerId': df_test.PassengerId, 'Survived': test_predictions})
-output.to_csv('submission_RFC.csv', index=False)
+output.to_csv('AdaBoost_NuSVC_2.csv', index=False)
 
 importances = model.feature_importances_
 
