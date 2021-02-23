@@ -74,7 +74,8 @@ def replace_by_map(df, var, map):
 def feature_scaling(df_train, df_test, var):
     stdsc = StandardScaler()
     values = np.array(df_train[var])
-    values = np.append(values, df_test[var])
+    # TODO: Isn't it better to scale the data only according to the training data?
+    # values = np.append(values, df_test[var])
     stdsc.fit(values.reshape(-1, 1))
     return stdsc.transform(np.array(df_train[var]).reshape(-1, 1)), stdsc.transform(np.array(df_test[var]).reshape(-1, 1))
 

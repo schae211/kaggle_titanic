@@ -105,5 +105,8 @@ methods = {"dtc": dtc_config, "bc": bc_config, "abc": abc_config, "knn": knn_con
 methods_list = ["dtc", "bc", "abc", "knn", "rf", "svm", "gbc", "nusvc"]
 
 methods_list_truncated = ["dtc", "knn", "rf", "svm", "gbc", "nusvc"]
+# I still haven not figured out how to get those ensemble methods (bagging, boosting) to work with other base
+# estimators here in RayTune, in ml_testing, it works perfectly
+ensemble_methods = ["bc", "abc"]
 
 run_experiments(methods_list_truncated, 250, 20)

@@ -8,8 +8,8 @@ import random
 import os
 
 # Load training and test data into pandas data frames.
-df_train = pd.read_csv(os.path.join("Data", "train.csv"))
-df_test = pd.read_csv(os.path.join("Data", "test.csv"))
+df_train = pd.read_csv(os.path.join("../Data", "train.csv"))
+df_test = pd.read_csv(os.path.join("../Data", "test.csv"))
 
 # Dictionary to store NaN information
 nans = {}
@@ -128,7 +128,7 @@ def main(*dfs, verbose=False):
         df["EmbarkedOHE"] = OHE_proccesing(df, "Embarked_filled")
 
         if verbose:
-            df.to_csv(os.path.join("Data", f"{name}_processed.csv"), na_rep="NaN")
+            df.to_csv(os.path.join("../Data", f"{name}_processed.csv"), na_rep="NaN")
 
 
 main((df_train, "train"), (df_test, "test"), verbose=False)

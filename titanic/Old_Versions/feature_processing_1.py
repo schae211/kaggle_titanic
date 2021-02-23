@@ -10,10 +10,10 @@ from sklearn.preprocessing import StandardScaler
 sns.set(color_codes=True)
 
 # Load training and test data into pandas data frames.
-df_train = pd.read_csv("Data/train.csv")
-df_train_org = pd.read_csv("Data/train.csv")
-df_test = pd.read_csv("Data/test.csv")
-df_test_org = pd.read_csv("Data/test.csv")
+df_train = pd.read_csv("../Data/train.csv")
+df_train_org = pd.read_csv("../Data/train.csv")
+df_test = pd.read_csv("../Data/test.csv")
+df_test_org = pd.read_csv("../Data/test.csv")
 
 def NaN_processing(df):
     df["Age"] = df["Age"].fillna(df["Age"].mean())      # Replace NaN in Age column with mean (or median)
