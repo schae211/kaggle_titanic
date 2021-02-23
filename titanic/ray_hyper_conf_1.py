@@ -8,14 +8,30 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import BaggingClassifier
+from cfg import ml_cfg
 
 # Import the ray library
 from ray import tune
 
 # Define BaseEstimators here?
-svc_base = SVC(kernel="rbf", gamma=0.05, probability=False, C=23)
-nusvc_base = NuSVC(kernel="rbf", gamma="auto", probability=False, nu=0.4)
-knn_base = KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="ball_tree")
+knn_base = KNeighborsClassifier(n_neighbors=ml_cfg["knn"]["n_neighbors"], weights=ml_cfg["knn"]["weights"],
+                           algorithm=ml_cfg["knn"]["algorithm"], leaf_size=ml_cfg["knn"]["leaf_size"])
+
+svc_base = SVC(kernel=ml_cfg["svc"]["kernel"], gamma=ml_cfg["svc"]["gamma"], probability=ml_cfg["svc"]["probability"],
+          C=ml_cfg["svc"]["C"])
+
+nusvc_base = NuSVC(nu=ml_cfg["nusvc"]["nu"], kernel=ml_cfg["nusvc"]["kernel"], gamma=ml_cfg["nusvc"]["gamma"],
+              probability=ml_cfg["nusvc"]["probability"])
+
+rf_base = RandomForestClassifier(n_estimators=ml_cfg["rf"]["n_estimators"], max_depth=ml_cfg["rf"]["max_depth"],
+                            min_samples_leaf=ml_cfg["rf"]["min_samples_leaf"], criterion=ml_cfg["rf"]["criterion"],
+                            max_features=ml_cfg["rf"]["max_features"])
+
+gbc_base = GradientBoostingClassifier(n_estimators=ml_cfg["gbc"]["n_estimators"], learning_rate=ml_cfg["gbc"]["learning_rate"],
+                                 criterion=ml_cfg["gbc"]["criterion"], max_depth=ml_cfg["gbc"]["max_depth"],
+                                 loss=ml_cfg["gbc"]["loss"])
+
+dtc_base = DecisionTreeClassifier(criterion="entropy", max_features="auto")
 
 
 dtc_config = {
@@ -28,21 +44,20 @@ dtc_config = {
 
 bc_config = {
     "class": BaggingClassifier,
-    # "base_estimator": DecisionTreeClassifier(),
-    # How to use something else than DecisionTreeClassifier?
-    "base_estimator": tune.choice([SVC(kernel="rbf", gamma=0.05, probability=False, C=23), NuSVC(kernel="rbf", gamma="auto", probability=False, nu=0.4), KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="ball_tree"), DecisionTreeClassifier()]),
+    # Which base estimators are possible?
+    #"base_estimator": tune.choice([svc_base, nusvc_base, dtc_base]),
+    "base_estimator": tune.choice([KNeighborsClassifier(), SVC(), NuSVC()]),
     "n_estimators": tune.randint(5, 20),
-    "max_samples": tune.randint(1, 3),
-    "max_features": tune.randint(1, 3),
-    "random_state": 1,
-    "algorithm": "SAMME"
+    "max_samples": tune.randint(10, 20),
+    #"max_features": tune.randint(1, 3),
+    "random_state": 1
 }
 
 abc_config = {
     "class": AdaBoostClassifier,
     # "base_estimator": DecisionTreeClassifier(),
     # How to use something else than DecisionTreeClassifier?
-    "base_estimator": tune.choice([SVC(kernel="rbf", gamma=0.05, probability=False, C=23), NuSVC(kernel="rbf", gamma="auto", probability=False, nu=0.4), KNeighborsClassifier(n_neighbors=10, weights="uniform", algorithm="ball_tree"), DecisionTreeClassifier()]),
+    "base_estimator": tune.choice([SVC(kernel="rbf", gamma=0.05, probability=False, C=23), NuSVC(kernel="rbf", gamma="auto", probability=False, nu=0.4), DecisionTreeClassifier()]),
     "n_estimators": tune.qrandint(10, 100, 10),
     "learning_rate": tune.uniform(0.5, 1.5),
     "random_state": 1,

@@ -1,4 +1,5 @@
-/titanic/ray_testing.py
-/titanic/Automated_ML.py
+/titanic/Old_Versions/ray_testing.py
+/titanic/Old_Versions/Automated_ML.py
 /titanic/df_results.csv
-/titanic/Scikit_Learn_ray_tune.py
+/titanic/Old_Versions/Scikit_Learn_ray_tune.py
+/titanic/submissions/
